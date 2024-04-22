@@ -33,6 +33,18 @@ def get_args():
         default="inference_results",
         help="The output directory where the model predictions and checkpoints will be written.",
     )
+    parser.add_argument(
+        "--image_name",
+        type=str,
+        default="inference_results",
+        help="The image name  where the model predictions and checkpoints will be written.",
+    )
+    parser.add_argument(
+        "--seed",
+        type=str,
+        default="seed",
+        help="define seed to generate image.",
+    )
     return parser.parse_args()
 
 
@@ -54,38 +66,25 @@ def main(args):
     color_context = inference_cfg[0]["color_context"]
     subject_color_dict = {tuple(map(int, key.split(','))): value for key, value in color_context.items()}
 
-    if args.output_dir is not None:
-        os.makedirs(args.output_dir, exist_ok=True)
-    subject_info = '_'.join([s[0] for s in sorted(subject_list)])
-    prompt_info = '_'.join(prompt.split())
-    save_dir = os.path.join(args.output_dir, subject_info, prompt_info)
-    os.makedirs(save_dir, exist_ok=True)
 
-    images = []
+    image = layout_guidance_sampling(
+        seed=args.seed,
+        device="cuda:0",
+        resolution=768,
+        pipeline=pipeline,
+        prompt=prompt,
+        residual_dict=residual_dict,
+        subject_list=subject_list,
+        subject_color_dict=subject_color_dict,
+        layout=layout,
+        cfg_scale=7.5,
+        inference_steps=50,
+        guidance_steps=guidance_steps,
+        guidance_weight=guidance_weight,
+        weight_negative=weight_negative,
+    )
+    image.save(os.path.join(args.output_dir, args.image_name))
 
-    for i in range(4):
-        image = layout_guidance_sampling(
-            seed=i,
-            device="cuda:0",
-            resolution=768,
-            pipeline=pipeline,
-            prompt=prompt,
-            residual_dict=residual_dict,
-            subject_list=subject_list,
-            subject_color_dict=subject_color_dict,
-            layout=layout,
-            cfg_scale=7.5,
-            inference_steps=50,
-            guidance_steps=guidance_steps,
-            guidance_weight=guidance_weight,
-            weight_negative=weight_negative,
-        )
-
-        image.save(os.path.join(save_dir, f"{i}.png"))
-        images.append(image)
-
-    all_image = image_grid(images=images, rows=2, cols=2)
-    all_image.save(os.path.join(save_dir, f"all_images.png"))
 
 
 if __name__ == "__main__":
